@@ -74,9 +74,14 @@ function sendMessage(event) {
   apiai.end();
 }
 
+/*
+* Check for wrong actions being called
+* Check for errors to stop crashes
+*/
+
 app.post('/ai', (req, res) => {	//apiai requires json format return
   if (req.body.result.action === 'textSearchMovies') {
-	var name = req.body.result.parameters['given-name']
+	var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
 	console.log(name)
     var url = "https://api.themoviedb.org/3/search/movie?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
 
@@ -100,76 +105,36 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
       }
 	  })
 	}
-})
-/*
-function textSearchMovies(sender, name){
-	
-
-	request(
-		{url: url,
-		json: true}
-	, (error, response, body)=> {
-	  if (!error && response.statusCode === 200) {
-		results = body.results[0]
-		id = body.results[0].id
-		var url_credits = "https://api.themoviedb.org/3/movie/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+	else if (req.body.result.action === 'top10'){
+		
+		var url = "https://api.themoviedb.org/3/movie/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 		
 		request(
-		{url: url_credits,
+		{url: url,
 		json: true}
-		, (error, response, body)=> {	// There is a limit on the size of the message 640 characters
-		  if (!error && response.statusCode === 200) {
-			image = results.poster_path
-			image_url = "https://image.tmdb.org/t/p/w500" + image  
-			  
-			cast = body.cast		
-			text = "Title: " + results.title + "\nRelease Date: " + results.release_date + "\nRating: " 
-					+ results.vote_average + "/10" + "\nSummary: "+results.overview + "\nCast: "
-			subtitle = "\nRelease Date: " + results.release_date + "\nRating: " 
-					+ results.vote_average + "/10"		
-			for (i=0;i<cast.length;i++){
-				text += "\n" + cast[i].character + " by " + cast[i].name
-			}		
-			text = text.substr(0,639)
-			messageData = {
-				text:text
-			}
-			attachData = {
-				type : 	"template",
-				payload : {
-					template_type:"generic",					
-					elements: [{
-						title: name,
-						//subtitle: subtitle,
-						subtitle: text.substr(0,79),
-						image_url: image_url
-                    }]
-				}
-			}	
-			request({
-				url: 'https://graph.facebook.com/v2.6/me/messages',
-				qs: {access_token:token},
-				method: 'POST',
-				json: {
-					recipient: {id:sender},
-					message:{
-						attachment : attachData,
-					} 
-				}
-			}, function(error, response, body) {
-				if (error) {
-					console.log('Error sending messages: ', error)
-				} else if (response.body.error) {
-					console.log('Error: ', response.body.error)
-				}
-			})		
-			
-		  } else {
-			console.log("Got an error: ", error, ", status code: ", response.statusCode)
-		  }
-		})		
-	  } else {
-		console.log("Got an error: ", error, ", status code: ", response.statusCode)
-	  }
-	})	
-}*/
+	, (err, response, body) => {
+      if (!err && response.statusCode == 200) {
+		results = body.results
+		text = ""
+		for (i=0;i<10;i++){
+			n = i+1
+			text += "\n" + n + ": "+ results[i].title
+		}
+        return res.json({
+          speech: text,
+          displayText: text,
+          source: 'top10'});
+      } else {
+        return res.status(400).json({
+          status: {
+            code: 400,
+            errorType: 'I did not find the movie.'}});
+      }
+	  })
+
+	}
+})
+/*
+var topMovies = "https://api.themoviedb.org/3/movie/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+
+*/
