@@ -50,14 +50,20 @@ function sendMessage(event) {
   apiai.on('response', (response) => {
     // Got a response from api.ai. Let's POST to Facebook Messenger
 		 let aiText = response.result.fulfillment.speech;
-
+		 
+		 //For posters
+		 var aiPoster = response.result.fulfillment.data;
+			
 		request({
 		  url: 'https://graph.facebook.com/v2.6/me/messages',
 		  qs: {access_token: token},
 		  method: 'POST',
 		  json: {
 			recipient: {id: sender},
-			message: {text: aiText}
+			message: { //Hard coded for now
+				//text: aiText
+				attachment : aiPoster
+				}
 		  }
 		}, (error, response) => {
 		  if (error) {
@@ -88,12 +94,27 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	
 	requestPromise(url,true).then(body =>{
 		results = body.results[0]
+		image = results.poster_path
+		image_url = "https://image.tmdb.org/t/p/w500" + image 
 		text = "Title: " + results.title + "\nRelease Date: " + results.release_date + "\nRating: " 
 					+ results.vote_average + "/10" + "\nSummary: "+results.overview
 		text = text.substr(0,639)
+		attachData = {
+				type : 	"template",
+				payload : {
+					template_type:"generic",					
+					elements: [{
+						title: results.title,	
+						//subtitle: subtitle,
+						subtitle: text.substr(0,79),
+						image_url: image_url
+                    }]
+				}
+		}
         return res.json({
           speech: text,
           displayText: text,
+		  data : attachData,
           source: 'textSearchMovies'});
 		})
 		.catch( error => {	//Need to check if error checking is right
