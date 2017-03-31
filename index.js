@@ -4,6 +4,7 @@ const request = require('request')
 const app = express();
 const apiaiApp = require('apiai');
 const api = apiaiApp('124002d5fe8f471ea94fca91022425dc');
+const Promise = require('promise')
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -43,7 +44,7 @@ function sendMessage(event) {
   let text = event.message.text;
 
   let apiai = api.textRequest(text, {
-    sessionId: 'tabby_cat' // use any arbitrary id
+    sessionId: 'ssd' // use any arbitrary id
   });
 
   apiai.on('response', (response) => {
@@ -82,59 +83,127 @@ function sendMessage(event) {
 app.post('/ai', (req, res) => {	//apiai requires json format return
   if (req.body.result.action === 'textSearchMovies') {
 	var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
-	console.log(name)
+	//console.log(name)
     var url = "https://api.themoviedb.org/3/search/movie?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
-
-    request(
-		{url: url,
-		json: true}
-	, (err, response, body) => {
-      if (!err && response.statusCode == 200) {
+	
+	requestPromise(url,true).then(body =>{
 		results = body.results[0]
 		text = "Title: " + results.title + "\nRelease Date: " + results.release_date + "\nRating: " 
 					+ results.vote_average + "/10" + "\nSummary: "+results.overview
+		text = text.substr(0,639)
         return res.json({
           speech: text,
           displayText: text,
           source: 'textSearchMovies'});
-      } else {
-        return res.status(400).json({
-          status: {
-            code: 400,
-            errorType: 'I did not find the movie.'}});
-      }
-	  })
+		})
+		.catch( error => {	//Need to check if error checking is right
+			console.error("Got an error: ", error)
+		})
 	}
-	else if (req.body.result.action === 'top10'){
+	else if (req.body.result.action === 'textSearchTV'){
+		var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
+		//console.log(name)
+		var url = "https://api.themoviedb.org/3/search/tv?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
+		
+		requestPromise(url,true).then(body =>{
+			results = body.results[0]		//Limit of 640 chars
+			text = "Title: " + results.name + "\nFirst Air Date: " + results.first_air_date + "\nRating: " 
+					+ results.vote_average + "/10" + "\nSummary: "+results.overview
+			text = text.substr(0,639)
+			return res.json({
+			  speech: text,
+			  displayText: text,
+			  source: 'textSearchTV'});
+			})
+			.catch( error => {	//Need to check if error checking is right
+				console.error("Got an error: ", error)
+			})	
+	}
+	else if (req.body.result.action === 'latest_movies'){
+		var url = "https://api.themoviedb.org/3/movie/now_playing?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		
+		requestPromise(url,true).then(function (body){
+		results = body.results
+		text = ""
+		for (i=0;i<results.length;i++){
+			n = i+1
+			text += "\n" + n + ": "+ results[i].title
+		}
+		return res.json({
+			  speech: text,
+			  displayText: text,
+			  source: 'latest_movies'});
+		})
+		.catch( error => {
+			console.error("Got an error: ", error)
+		})
+	
+	}
+	else if (req.body.result.action === 'top10movies'){
 		
 		var url = "https://api.themoviedb.org/3/movie/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 		
-		request(
-		{url: url,
-		json: true}
-	, (err, response, body) => {
-      if (!err && response.statusCode == 200) {
+		requestPromise(url,true).then(body =>{
 		results = body.results
 		text = ""
 		for (i=0;i<10;i++){
 			n = i+1
 			text += "\n" + n + ": "+ results[i].title
 		}
-        return res.json({
-          speech: text,
-          displayText: text,
-          source: 'top10'});
-      } else {
+		return res.json({
+			  speech: text,
+			  displayText: text,
+			  source: 'top10movies'});
+		})
+		.catch( error => {	//Need to check if this is right
+			console.error("Got an error: ", error)
+		})
+	}
+	else if (req.body.result.action === 'top10series'){	//Results not that good
+	
+		var url = "https://api.themoviedb.org/3/tv/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+
+		requestPromise(url,true).then(function (body){
+		results = body.results
+		text = ""
+		for (i=0;i<10;i++){
+			n = i+1
+			text += "\n" + n + ": "+ results[i].name
+		}
+		return res.json({
+			  speech: text,
+			  displayText: text,
+			  source: 'top10series'});
+		})
+		.catch( error => {
+			console.error("Got an error: ", error)
+		})
+	}
+})
+		
+function requestPromise(url, json){	//Generic function for making GET requests to APIs
+	return new Promise(function (resolve, reject){
+		request(
+		{url: url,
+		json: json}
+		, (error, response, body)=> {
+		  if (!error && response.statusCode === 200) {
+			resolve(body)
+		  } else {
+			if (error){
+				reject(error)
+			}
+			else{
+				reject(response.statusCode)
+			}
+		  }
+		})	
+	})
+}
+
+	 /*else {
         return res.status(400).json({
           status: {
             code: 400,
             errorType: 'I did not find the movie.'}});
-      }
-	  })
-
-	}
-})
-/*
-var topMovies = "https://api.themoviedb.org/3/movie/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
-
-*/
+      }*/
