@@ -53,7 +53,7 @@ function sendPostback(event) {
 		  json: {
 			recipient: {id: sender},
 			message: { 
-				text: payload//.substr(0,639), //text has 640 chars limit
+				text: payload.substr(0,639), //text has 640 chars limit
 				}
 		  }
 		}, (error, response) => {
@@ -81,11 +81,9 @@ function sendMessage(event) {
 		 var aiPoster = null
 		 
 		 if (response.result.fulfillment.data == null){
-			 //console.log("1")
 			aiText = response.result.fulfillment.speech;
 		 }
 		 else{
-			 //console.log("2")
 			//For attachments
 			aiPoster = response.result.fulfillment.data;
 		 }
@@ -96,7 +94,7 @@ function sendMessage(event) {
 		  method: 'POST',
 		  json: {
 			recipient: {id: sender},
-			message: { 
+			message: { 		//Either message or attachment
 				text: aiText,
 				attachment : aiPoster
 				}
@@ -219,19 +217,90 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		var url = "https://api.themoviedb.org/3/search/tv?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
 		
 		requestPromise(url,true).then(body =>{
-			results = body.results[0]		//Limit of 640 chars
-			text = "Title: " + results.name + "\nFirst Air Date: " + results.first_air_date + "\nRating: " 
-					+ results.vote_average + "/10" + "\nSummary: "+results.overview
-			text = text.substr(0,639)
+			results = body.results[0]
+			image = results.poster_path
+			image_url = "https://image.tmdb.org/t/p/w500" + image 
+			id = body.results[0].id
+			
+			var url_credits = "https://api.themoviedb.org/3/tv/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+			
+			requestPromise(url_credits,true).then(function (body){
+				var cast = body.cast	
+				var text_cast = "Cast: "
+				var n = cast.length
+				if (cast.length > 10){
+					n = 10
+				}
+				for (i=0;i<n;i++){
+					text_cast += "\n" + cast[i].character + " by " + cast[i].name
+				}
+			
+			text = "First Air Date: " + results.first_air_date + "\nRating: " 
+					+ results.vote_average + "/10" + "\nGenre: "// + "\nSummary: "+results.overview
+			//text = text.substr(0,639)			
+		
+			var genre_ids = results.genre_ids
+			var c = 0
+			var genre_names = []
+			/*Check if call is optimum or this loop*/
+			for (var i=0; i< genre_ids.length ; i++){
+				for (var j=0; j< genres_list.length ; j++){
+					if (genres_list[j].id == genre_ids[i]){
+						genre_names[c++] = genres_list[j].name
+						break
+					}
+				}
+			}	
+			
+			for (i=0;i<genre_names.length;i++){
+				if (i == genre_names.length - 1 ){
+					text += genre_names[i]
+				}
+				else{
+					text += genre_names[i] + ", "	
+				}
+			}
+			var summary = "\nSummary: " + results.overview
+			attachData = {
+					type : 	"template",
+					payload : {
+						template_type:"generic",					
+						elements: [{
+							title: results.name,	
+							//subtitle: subtitle,		//subtitle has 80 chars limit	//Genres also not fitting
+							subtitle: text.substr(0,79),
+							image_url: image_url,
+							buttons:[{		//Control again goes to start as we receive a new message
+								type: "postback",
+								title: "Show Summary",		//payload has 1000 chars limit
+								payload: summary.substr(0,999)		//Postback message 
+							},
+							{
+								type: "postback",
+								title: "Show Cast",
+								payload: text_cast//.substr(0,999)
+							}
+							]
+						}
+						]
+					}
+			}
+			
 			return res.json({
 			  speech: text,
 			  displayText: text,
+			  data : attachData,
 			  source: 'textSearchTV'});
 			})
 			.catch( error => {	//Need to check if error checking is right
 				console.error("Got an error: ", error)
-			})	
+			})
+		})
+		.catch( error => {	//Need to check if error checking is right
+			console.error("Got an error: ", error)
+		})		
 	}
+	
 	else if (req.body.result.action === 'latest_movies'){
 		var url = "https://api.themoviedb.org/3/movie/now_playing?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 		
