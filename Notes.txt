@@ -1,0 +1,5 @@
+* Problem with postbacks: Solved
+
+*Display
+
+1)//Genres not fitting in subtitle

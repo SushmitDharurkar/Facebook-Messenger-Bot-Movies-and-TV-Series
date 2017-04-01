@@ -31,6 +31,9 @@ app.post('/webhook', (req, res) => {
         if (event.message && event.message.text) {
           sendMessage(event);
         }
+		else if (event.postback && event.postback.payload) {
+            sendPostback(event)
+        }
       });
     });
     res.status(200).end();
@@ -38,6 +41,30 @@ app.post('/webhook', (req, res) => {
 });
 
 var token = "EAASYIgowOGwBAIyBelSxIsUeEZAwpZASkSyYV9I5FzBNRI3g4b39ULf1uIWyQrRdbsM8ZCiDaaHt5gaSfQzlrKCHjH5joQIZCNYlGOh7UIzaKYZAyDFLNaCd2cw06BdVFCCXpEY4uZAl4ZCKAnOjke06ZBJA8swdqYLxg9e643mI8QZDZD"
+
+function sendPostback(event) {
+  let sender = event.sender.id;
+  let payload = event.postback.payload;
+
+		request({
+		  url: 'https://graph.facebook.com/v2.6/me/messages',
+		  qs: {access_token: token},
+		  method: 'POST',
+		  json: {
+			recipient: {id: sender},
+			message: { 
+				text: payload//.substr(0,639), //text has 640 chars limit
+				}
+		  }
+		}, (error, response) => {
+		  if (error) {
+			  console.log('Error sending message: ', error);
+		  } else if (response.body.error) {
+			  console.log('Error: ', response.body.error);
+		  }
+		});
+
+}
 
 function sendMessage(event) {
   let sender = event.sender.id;
@@ -49,19 +76,28 @@ function sendMessage(event) {
 
   apiai.on('response', (response) => {
     // Got a response from api.ai. Let's POST to Facebook Messenger
-		 let aiText = response.result.fulfillment.speech;
 		 
-		 //For posters
-		 var aiPoster = response.result.fulfillment.data;
-			
+		 var aiText = ""
+		 var aiPoster = null
+		 
+		 if (response.result.fulfillment.data == null){
+			 //console.log("1")
+			aiText = response.result.fulfillment.speech;
+		 }
+		 else{
+			 //console.log("2")
+			//For attachments
+			aiPoster = response.result.fulfillment.data;
+		 }
+		 	
 		request({
 		  url: 'https://graph.facebook.com/v2.6/me/messages',
 		  qs: {access_token: token},
 		  method: 'POST',
 		  json: {
 			recipient: {id: sender},
-			message: { //Hard coded for now
-				//text: aiText
+			message: { 
+				text: aiText,
 				attachment : aiPoster
 				}
 		  }
@@ -84,9 +120,11 @@ function sendMessage(event) {
 /*
 * Check for wrong actions being called
 * Check for errors to stop crashes
+* Replies are lagging a bit
 */
 
 app.post('/ai', (req, res) => {	//apiai requires json format return
+  
   if (req.body.result.action === 'textSearchMovies') {
 	var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
 	//console.log(name)
@@ -96,8 +134,23 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		results = body.results[0]
 		image = results.poster_path
 		image_url = "https://image.tmdb.org/t/p/w500" + image 
+		id = body.results[0].id
+		
+		var url_credits = "https://api.themoviedb.org/3/movie/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		
+		requestPromise(url_credits,true).then(function (body){
+			var cast = body.cast	
+			var text_cast = "Cast: "
+			var n = cast.length
+			if (cast.length > 10){
+				n = 10
+			}
+			for (i=0;i<n;i++){
+				text_cast += "\n" + cast[i].character + " by " + cast[i].name
+			}
+		
 		text = "Release Date: " + results.release_date + "\nRating: " 
-					+ results.vote_average + "/10" + "\nGenre: "//+ "\nSummary: "+results.overview
+					+ results.vote_average + "/10" + "\nGenre: "
 		//text = text.substr(0,639)
 		
 		var genre_ids = results.genre_ids
@@ -128,10 +181,22 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 					template_type:"generic",					
 					elements: [{
 						title: results.title,	
-						//subtitle: subtitle,
+						//subtitle: subtitle,		//subtitle has 80 chars limit	//Genres also not fitting
 						subtitle: text.substr(0,79),
-						image_url: image_url
-                    }]
+						image_url: image_url,
+						buttons:[{		//Control again goes to start as we receive a new message
+							type: "postback",
+							title: "Show Summary",		//payload has 1000 chars limit
+							payload: "\nSummary: " + results.overview		//Postback message 
+						},
+						{
+							type: "postback",
+							title: "Show Cast",
+							payload: text_cast//.substr(0,999)
+						}
+						]
+                    }
+					]
 				}
 		}
         return res.json({
@@ -139,6 +204,10 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
           displayText: text,
 		  data : attachData,
           source: 'textSearchMovies'});
+	})
+		.catch( error => {
+			console.error("Got an error: ", error)
+		})
 		})
 		.catch( error => {	//Need to check if error checking is right
 			console.error("Got an error: ", error)
