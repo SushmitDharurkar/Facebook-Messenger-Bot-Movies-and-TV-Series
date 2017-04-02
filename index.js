@@ -178,15 +178,23 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		
 		requestPromise(url,true).then(function (body){
 		results = body.results
-		text = ""
-		for (i=0;i<results.length;i++){
-			n = i+1
-			text += "\n" + n + ": "+ results[i].title
+		
+		var attachData = {				//This also can me made a function
+					type : 	"template",
+					payload : {
+						template_type:"generic",					
+						elements: []
+					}
+			}
+		
+		for (var i=0; i<10; i++){	//I think this will take time - not that much
+			attachData.payload.elements[i] = allInformation(body, results[i], 3)
 		}
 		
 		return res.json({
-			  speech: text,
-			  displayText: text,
+			//  speech: text,
+			 // displayText: text,
+			  data: attachData,
 			  source: 'latest_movies'});
 		})
 		.catch( error => {
@@ -358,8 +366,8 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 		
 		//console.log(attachData.payload.elements[0])
 	}
-	else{	//top movies
-		if (state = 4){
+	else{	//top movies or series
+		if (state == 4){
 			title = results.name
 			summary = title + ": " + results.overview
 		}
