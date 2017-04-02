@@ -6,6 +6,14 @@ const apiaiApp = require('apiai');
 const api = apiaiApp('124002d5fe8f471ea94fca91022425dc');
 const Promise = require('promise')
 
+var genres_list = [
+	{"id":28,"name":"Action"},{"id":12,"name":"Adventure"},{"id":16,"name":"Animation"},
+	{"id":35,"name":"Comedy"},{"id":80,"name":"Crime"},{"id":99,"name":"Documentary"},{"id":18,"name":"Drama"},
+	{"id":10751,"name":"Family"},{"id":14,"name":"Fantasy"},{"id":36,"name":"History"},{"id":27,"name":"Horror"},
+	{"id":10402,"name":"Music"},{"id":9648,"name":"Mystery"},{"id":10749,"name":"Romance"},{"id":878,"name":"Science Fiction"},
+	{"id":10770,"name":"TV Movie"},{"id":53,"name":"Thriller"},{"id":10752,"name":"War"},{"id":37,"name":"Western"}
+]
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -29,7 +37,7 @@ app.post('/webhook', (req, res) => {
     req.body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
         if (event.message && event.message.text) {
-          sendMessage(event);
+          sendMessageAI(event);
         }
 		else if (event.postback && event.postback.payload) {
             sendPostback(event)
@@ -46,27 +54,74 @@ function sendPostback(event) {
   let sender = event.sender.id;
   let payload = event.postback.payload;
 
-		request({
+		if (payload.charAt(0) == "m"){
+			//sendMessage(similarStuff(payload,sender))	//Non-blocking/Async problem
+			similarStuff(payload.substr(1,payload.length),sender, 3).then(attachData => {
+				sendMessage(attachData, sender)
+			})
+			.catch( error => {
+				console.error("Got an error: ", error)
+			})
+			
+		}
+		else if (payload.charAt(0) == "s"){
+			similarStuff(payload.substr(1,payload.length),sender, 4).then(attachData => {
+				sendMessage(attachData, sender)
+			})
+			.catch( error => {
+				console.error("Got an error: ", error)
+			})
+		}
+		else{
+			request({							//Need to write a function for this
+			  url: 'https://graph.facebook.com/v2.6/me/messages',
+			  qs: {access_token: token},
+			  method: 'POST',
+			  json: {
+				recipient: {id: sender},
+				message: { 
+					text: payload.substr(0,639), //text has 640 chars limit
+					},
+				//sender_action:"typing_on"
+			  }
+			}, (error, response) => {
+			  if (error) {
+				  console.log('Error sending message: ', error);
+			  } else if (response.body.error) {
+				  console.log('Error: ', response.body.error);
+			  }
+			});	
+		}
+}
+
+function sendMessage(attachData, sender) {
+	//console.log(req)
+	request(
+		//req
+		{
 		  url: 'https://graph.facebook.com/v2.6/me/messages',
 		  qs: {access_token: token},
 		  method: 'POST',
 		  json: {
 			recipient: {id: sender},
-			message: { 
-				text: payload.substr(0,639), //text has 640 chars limit
-				}
+			message: { 		//Either message or attachment
+				//text: aiText,
+				attachment : attachData
+				},
+			//sender_action:"typing_on"	
+				
 		  }
-		}, (error, response) => {
-		  if (error) {
-			  console.log('Error sending message: ', error);
-		  } else if (response.body.error) {
-			  console.log('Error: ', response.body.error);
-		  }
-		});
-
+		}
+	, (error, response) => {
+	  if (error) {
+		  console.log('Error sending message: ', error);
+	  } else if (response.body.error) {
+		  console.log('Error: ', response.body.error);
+	  }
+	});
 }
 
-function sendMessage(event) {
+function sendMessageAI(event) {
   let sender = event.sender.id;
   let text = event.message.text;
 
@@ -97,7 +152,9 @@ function sendMessage(event) {
 			message: { 		//Either message or attachment
 				text: aiText,
 				attachment : aiPoster
-				}
+				},
+			//sender_action:"typing_on"	
+				
 		  }
 		}, (error, response) => {
 		  if (error) {
@@ -179,7 +236,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		requestPromise(url,true).then(function (body){
 		results = body.results
 		
-		var attachData = {				//This also can me made a function
+		var attachData = {				//This also can be made a function
 					type : 	"template",
 					payload : {
 						template_type:"generic",					
@@ -336,6 +393,12 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 	var summary = "\nSummary: " + results.overview
 	
 	if (state == 1 || state == 2){
+		if (state == 1){//This could cause problems, think of alternatives
+			similar = "m"+results.id	//m - movies, s - series
+		}
+		else{
+			similar = "s"+results.id
+		}
 		var attachData = {
 		type : 	"template",
 		payload : {
@@ -354,6 +417,11 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 					type: "postback",
 					title: "Show Cast",
 					payload: text_cast//.substr(0,999)
+				},
+				{
+					type: "postback",
+					title: "Show Similar",	
+					payload: similar	//Need to branch here for movies and series
 				}
 				]
 			}
@@ -400,19 +468,34 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 	return res
 }
 		
-
-var genres_list = [
-	{"id":28,"name":"Action"},{"id":12,"name":"Adventure"},{"id":16,"name":"Animation"},
-	{"id":35,"name":"Comedy"},{"id":80,"name":"Crime"},{"id":99,"name":"Documentary"},{"id":18,"name":"Drama"},
-	{"id":10751,"name":"Family"},{"id":14,"name":"Fantasy"},{"id":36,"name":"History"},{"id":27,"name":"Horror"},
-	{"id":10402,"name":"Music"},{"id":9648,"name":"Mystery"},{"id":10749,"name":"Romance"},{"id":878,"name":"Science Fiction"},
-	{"id":10770,"name":"TV Movie"},{"id":53,"name":"Thriller"},{"id":10752,"name":"War"},{"id":37,"name":"Western"}
-]
-
-
-	 /*else {
-        return res.status(400).json({
-          status: {
-            code: 400,
-            errorType: 'I did not find the movie.'}});
-      }*/
+function similarStuff(id, sender, state){
+	return new Promise(function (resolve, reject){
+		if (state == 3){
+			var url_similar = "https://api.themoviedb.org/3/movie/" + id + "/similar?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		}
+		else{
+			var url_similar = "https://api.themoviedb.org/3/tv/" + id + "/similar?api_key=6332c91e1508b1fd86ed1653c1cc478e"	
+		}
+		
+		requestPromise(url_similar,true).then(function (body){
+		
+			var results = body.results	
+			
+			var attachData = {
+							type : 	"template",
+							payload : {
+								template_type:"generic",					
+								elements: []
+							}
+					}
+				
+			for (var i=0; i<10; i++){	
+				attachData.payload.elements[i] = allInformation(body, results[i], state)
+			}
+			resolve(attachData) 
+	})	
+	})
+	.catch( error => {	//Need to check if error checking is right
+		console.error("Got an error: ", error)
+	})	
+}
