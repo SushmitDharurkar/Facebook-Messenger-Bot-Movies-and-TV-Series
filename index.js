@@ -136,7 +136,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		
 		requestPromise(url_credits,true).then(function (body){
 			
-			var result = movieInformation(body, results, 1)
+			var result = allInformation(body, results, 1)
 			return res.json(result);
 		})
 		.catch( error => {
@@ -154,79 +154,15 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		
 		requestPromise(url,true).then(body =>{
 			results = body.results[0]
-			image = results.poster_path
-			image_url = "https://image.tmdb.org/t/p/w500" + image 
 			id = body.results[0].id
 			
 			var url_credits = "https://api.themoviedb.org/3/tv/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 			
 			requestPromise(url_credits,true).then(function (body){
-				var cast = body.cast	
-				var text_cast = "Cast: "
-				var n = cast.length
-				if (cast.length > 10){
-					n = 10
-				}
-				for (i=0;i<n;i++){
-					text_cast += "\n" + cast[i].character + " by " + cast[i].name
-				}
-			
-			text = "First Air Date: " + results.first_air_date + "\nRating: " 
-					+ results.vote_average + "/10" + "\nGenre: "// + "\nSummary: "+results.overview
-			//text = text.substr(0,639)			
-		
-			var genre_ids = results.genre_ids
-			var c = 0
-			var genre_names = []
-			/*Check if call is optimum or this loop*/
-			for (var i=0; i< genre_ids.length ; i++){
-				for (var j=0; j< genres_list.length ; j++){
-					if (genres_list[j].id == genre_ids[i]){
-						genre_names[c++] = genres_list[j].name
-						break
-					}
-				}
-			}	
-			
-			for (i=0;i<genre_names.length;i++){
-				if (i == genre_names.length - 1 ){
-					text += genre_names[i]
-				}
-				else{
-					text += genre_names[i] + ", "	
-				}
-			}
-			var summary = "\nSummary: " + results.overview
-			var attachData = {
-					type : 	"template",
-					payload : {
-						template_type:"generic",					
-						elements: [{
-							title: results.name,	
-							//subtitle: subtitle,		//subtitle has 80 chars limit	//Genres also not fitting
-							subtitle: text.substr(0,79),
-							image_url: image_url,
-							buttons:[{		//Control again goes to start as we receive a new message
-								type: "postback",
-								title: "Show Summary",		//payload has 1000 chars limit
-								payload: summary.substr(0,999)		//Postback message 
-							},
-							{
-								type: "postback",
-								title: "Show Cast",
-								payload: text_cast//.substr(0,999)
-							}
-							]
-						}
-						]
-					}
-			}
-			
-			return res.json({
-			  speech: text,
-			  displayText: text,
-			  data : attachData,
-			  source: 'textSearchTV'});
+				
+				var result = allInformation(body, results, 2)
+				return res.json(result);
+
 			})
 			.catch( error => {	//Need to check if error checking is right
 				console.error("Got an error: ", error)
@@ -273,8 +209,8 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 					}
 			}
 		
-		for (var i=0; i<10; i++){	//I think this will take time
-			attachData.payload.elements[i] = movieInformation(body, results[i], 0)
+		for (var i=0; i<10; i++){	//I think this will take time - not that much
+			attachData.payload.elements[i] = allInformation(body, results[i], 3)
 		}
 		
 		return res.json({
@@ -292,16 +228,27 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		var url = "https://api.themoviedb.org/3/tv/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 
 		requestPromise(url,true).then(function (body){
-		results = body.results
-		text = ""
-		for (i=0;i<10;i++){
-			n = i+1
-			text += "\n" + n + ": "+ results[i].name
-		}
-		return res.json({
-			  speech: text,
-			  displayText: text,
-			  source: 'top10series'});
+		
+			results = body.results
+			
+			var attachData = {
+						type : 	"template",
+						payload : {
+							template_type:"generic",					
+							elements: []
+						}
+				}
+			
+			for (var i=0; i<10; i++){	
+				attachData.payload.elements[i] = allInformation(body, results[i], 4)
+			}
+			
+			return res.json({
+				 // speech: text,
+				 // displayText: text,
+				  data: attachData,
+				  source: 'top10series'
+			});
 		})
 		.catch( error => {
 			console.error("Got an error: ", error)
@@ -329,11 +276,11 @@ function requestPromise(url, json){	//Generic function for making GET requests t
 	})
 }
 
-function movieInformation(body, results, state){
+function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Series
 	var image = results.poster_path
 	var image_url = "https://image.tmdb.org/t/p/w500" + image 
 	
-	if (state == 1){
+	if (state == 1 || state == 2){
 		var cast = body.cast	
 		var text_cast = "Cast: "
 		var n = cast.length
@@ -345,9 +292,16 @@ function movieInformation(body, results, state){
 		}	
 	}	
 	
-	var text = "Release Date: " + results.release_date + "\nRating: " 
-				+ results.vote_average + "/10" + "\nGenre: "
-	//text = text.substr(0,639)
+	if (state == 2 || state == 4){
+		var text = "First Air Date: " + results.first_air_date + "\nRating: " 
+					+ results.vote_average + "/10" + "\nGenre: "
+	}
+	else{		
+		var text = "Release Date: " + results.release_date + "\nRating: " 
+			+ results.vote_average + "/10" + "\nGenre: "	
+	}
+	
+	//text = text.substr(0,639)	
 	
 	var genre_ids = results.genre_ids
 	var c = 0
@@ -371,7 +325,9 @@ function movieInformation(body, results, state){
 		}
 	}
 	
-	if (state == 1){
+	var summary = "\nSummary: " + results.overview
+	
+	if (state == 1 || state == 2){
 		var attachData = {
 		type : 	"template",
 		payload : {
@@ -384,7 +340,7 @@ function movieInformation(body, results, state){
 				buttons:[{		//Control again goes to start as we receive a new message
 					type: "postback",
 					title: "Show Summary",		//payload has 1000 chars limit
-					payload: "\nSummary: " + results.overview		//Postback message 
+					payload: summary.substr(0,999)		//Postback message 
 				},
 				{
 					type: "postback",
@@ -396,18 +352,31 @@ function movieInformation(body, results, state){
 				]
 			}
 		}
+		if (state == 2){
+			attachData.payload.elements[0].title = results.name
+		}
+		
 		//console.log(attachData.payload.elements[0])
 	}
 	else{	//top movies
+		if (state = 4){
+			title = results.name
+			summary = title + ": " + results.overview
+		}
+		else{
+			title = results.title
+			summary = results.title + ": " + results.overview
+		}
+		
 		var semiAttachData = {
-		title: results.title,	
+		title: title,	
 		//subtitle: subtitle,		//subtitle has 80 chars limit	//Genres also not fitting
 		subtitle: text.substr(0,79),
 		image_url: image_url,
 		buttons:[{		//Control again goes to start as we receive a new message
 			type: "postback",
 			title: "Show Summary",		//payload has 1000 chars limit
-			payload: results.title + ": " + results.overview		//Postback message 
+			payload: summary.substr(0,999)		//Postback message 
 		}]
 		}
 		return semiAttachData	
