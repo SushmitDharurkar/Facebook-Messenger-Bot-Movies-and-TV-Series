@@ -39,18 +39,35 @@ app.get('/webhook', (req, res) => {
 /* Handling all messenges */
 app.post('/webhook', (req, res) => {
   //console.log(req.body);
-  if (req.body.object === 'page') {
-    req.body.entry.forEach((entry) => {
+  /*if (req.body.object === 'page') {
+    req.body.entry.forEach((entry) => {		//Maybe here is error	//Reading system msgs as user input
       entry.messaging.forEach((event) => {
         console.log("\n" + JSON.stringify(event))
 		if (event.message && event.message.text) {
-          sendMessageAI(event);
+          console.log("\n User Msg:" + JSON.stringify(event))
+		  sendMessageAI(event);
         }
 		else if (event.postback && event.postback.payload) {
             sendPostback(event)	//Postback causes problems for api.ai
         }
       });
-    });
+  });*/
+	
+	messaging_events = req.body.entry[0].messaging
+    for (i = 0; i < messaging_events.length; i++) {
+        event = req.body.entry[0].messaging[i]
+        sender = event.sender.id
+		//console.log("\n" + JSON.stringify(event))
+        if (event.message && event.message.text) {
+			//console.log("\n User Msg: " + JSON.stringify(event))
+            //text = event.message.text
+            sendMessageAI(event);
+        }
+		else if (event.postback && event.postback.payload) {
+            sendPostback(event)	//Postback causes problems for api.ai
+        }
+    //}
+	
     res.status(200).end();
   }
 });
@@ -96,14 +113,16 @@ function sendMessage(attachData, sender) {
 	
 }
 
-function sendMessageAI(event) {
+function sendMessageAI(event) {		//Even small talk causes problems 
   let sender = event.sender.id;
   let text = event.message.text;
   
-  if (text.includes("Summary") || text.includes("Cast") || text.includes("mnull") || text.includes("snull")){	//Postback was going to api.ai which shouldn't happen
+  //console.log("\nAI: " + sender + text)
+  
+  /*if (text.includes("Summary") || text.includes("Cast") || text.includes("mnull") || text.includes("snull")){	//Postback was going to api.ai which shouldn't happen
 		return
-  }
-  else{
+  }*/
+ // else{
   let apiai = api.textRequest(text.substr(0,255), {	// "errorDetails": "All queries should be less than 256 symbols. - Resolved
     sessionId: 'ssd' // use any arbitrary id
   });
@@ -131,14 +150,14 @@ function sendMessageAI(event) {
   });
 
   apiai.end();
-  }
+  //}
 }
 
 function requestPOSTFB(sender, text, attachData = null){	//Generic function for making POST requests to FB Messenger
 	request(
 	{
 	  url: 'https://graph.facebook.com/v2.6/me/messages',
-	  qs: {access_token: "EAASYIgowOGwBABGZCGh4YFEZBialDKpOS7ZCAZBMk8OCE49ss4IiC5saJCXIsdZBwpEhXH5pyk4V4VM7zZCi9Ua2Co74AsC8mFJ40CMSG6NgMenaQALt9OGx7eVkWDylDzCWf3zMWIFzaUXSTIZB0krFYXAmuJoZBCFRMD4JIT7BZCgZDZD"},
+	  qs: {access_token: token},
 	  method: 'POST',
 	  json: {
 		recipient: {id: sender},

@@ -4,11 +4,13 @@
 
 1)//Genres not fitting in subtitle
 
-*Errors
+*Errors: Solved
 
 Occurs only for postbacks not for normal searches
 token needs to be sent again
 **the messenger sends show summary which gets identified as "Series"
+
+*//* This whole problem was due to echoes
 
 1)Error:  { message: '(#100) No matching user found',
   type: 'OAuthException',
