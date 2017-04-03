@@ -1,15 +1,17 @@
 //curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=<PAGE_ACCESS_TOKEN>"
 
+// message: '(#100) No matching user found', - Due to page token - Due to echoes
+var FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN
+var API_AI_TOKEN = process.env.API_AI_TOKEN
+var TMDB_API_KEY = process.env.TMDB_API_KEY
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const request = require('request')
 const app = express();
 const apiaiApp = require('apiai');
-const api = apiaiApp('124002d5fe8f471ea94fca91022425dc');
+const api = apiaiApp(API_AI_TOKEN);
 const Promise = require('promise')
-
-//// message: '(#100) No matching user found', - Due to page token
-var token = "EAASYIgowOGwBABGZCGh4YFEZBialDKpOS7ZCAZBMk8OCE49ss4IiC5saJCXIsdZBwpEhXH5pyk4V4VM7zZCi9Ua2Co74AsC8mFJ40CMSG6NgMenaQALt9OGx7eVkWDylDzCWf3zMWIFzaUXSTIZB0krFYXAmuJoZBCFRMD4JIT7BZCgZDZD"
 
 
 var genres_list = [
@@ -157,7 +159,7 @@ function requestPOSTFB(sender, text, attachData = null){	//Generic function for 
 	request(
 	{
 	  url: 'https://graph.facebook.com/v2.6/me/messages',
-	  qs: {access_token: token},
+	  qs: {access_token: FB_PAGE_TOKEN},
 	  method: 'POST',
 	  json: {
 		recipient: {id: sender},
@@ -209,13 +211,13 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
   if (req.body.result.action === 'textSearchMovies') {
 	var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
 	//console.log(name)
-    var url = "https://api.themoviedb.org/3/search/movie?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
+    var url = "https://api.themoviedb.org/3/search/movie?api_key=" + TMDB_API_KEY+ "&query=" + name
 	
 	requestPromise(url,true).then(body =>{
 		results = body.results[0]
 		id = body.results[0].id
 		//console.log(name)
-		var url_credits = "https://api.themoviedb.org/3/movie/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		var url_credits = "https://api.themoviedb.org/3/movie/" + id + "/credits?api_key=" + TMDB_API_KEY
 		
 		requestPromise(url_credits,true).then(function (body){
 			
@@ -233,13 +235,13 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	else if (req.body.result.action === 'textSearchTV'){
 		var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
 		//console.log(name)
-		var url = "https://api.themoviedb.org/3/search/tv?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
+		var url = "https://api.themoviedb.org/3/search/tv?api_key=" + TMDB_API_KEY + "&query=" + name
 		//console.log(name)
 		requestPromise(url,true).then(body =>{
 			var results = body.results[0]	//May be non-blocking
 			var id = results.id			//TypeError: Cannot read property 'id' of undefined
 			
-			var url_credits = "https://api.themoviedb.org/3/tv/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+			var url_credits = "https://api.themoviedb.org/3/tv/" + id + "/credits?api_key=" + TMDB_API_KEY
 			
 			requestPromise(url_credits,true).then(function (body){
 				
@@ -257,7 +259,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	}
 	
 	else if (req.body.result.action === 'latest_movies'){
-		var url = "https://api.themoviedb.org/3/movie/now_playing?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		var url = "https://api.themoviedb.org/3/movie/now_playing?api_key=" + TMDB_API_KEY 
 		
 		requestPromise(url,true).then(function (body){
 		results = body.results
@@ -281,7 +283,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	}
 	else if (req.body.result.action === 'top10movies'){
 		
-		var url = "https://api.themoviedb.org/3/movie/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		var url = "https://api.themoviedb.org/3/movie/top_rated?api_key=" + TMDB_API_KEY 
 		
 		requestPromise(url,true).then(body =>{
 		results = body.results
@@ -304,7 +306,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	}
 	else if (req.body.result.action === 'top10series'){	//Results not that good
 	
-		var url = "https://api.themoviedb.org/3/tv/top_rated?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+		var url = "https://api.themoviedb.org/3/tv/top_rated?api_key=" + TMDB_API_KEY
 
 		requestPromise(url,true).then(function (body){
 		
@@ -468,10 +470,10 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 function similarStuff(id, sender, state){
 	return new Promise(function (resolve, reject){
 		if (state == 3){
-			var url_similar = "https://api.themoviedb.org/3/movie/" + id + "/similar?api_key=6332c91e1508b1fd86ed1653c1cc478e"
+			var url_similar = "https://api.themoviedb.org/3/movie/" + id + "/similar?api_key=" + TMDB_API_KEY
 		}
 		else{
-			var url_similar = "https://api.themoviedb.org/3/tv/" + id + "/similar?api_key=6332c91e1508b1fd86ed1653c1cc478e"	
+			var url_similar = "https://api.themoviedb.org/3/tv/" + id + "/similar?api_key=" + TMDB_API_KEY
 		}
 		
 		requestPromise(url_similar,true).then(function (body){
