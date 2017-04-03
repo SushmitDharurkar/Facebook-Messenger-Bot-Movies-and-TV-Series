@@ -4,6 +4,20 @@
 
 1)//Genres not fitting in subtitle
 
+*Errors
+
+Occurs only for postbacks not for normal searches
+token needs to be sent again
+**the messenger sends show summary which gets identified as "Series"
+
+1)Error:  { message: '(#100) No matching user found',
+  type: 'OAuthException',
+  code: 100,
+  error_subcode: 2018001,
+  fbtrace_id: 'EyQ3LbpKpxd' }
+  
+Bot not working after 3 such errors. First request works correctly
+  
 /*Error check
 	 else {
         return res.status(400).json({
@@ -11,3 +25,4 @@
             code: 400,
             errorType: 'I did not find the movie.'}});
       }*/
+	  

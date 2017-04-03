@@ -1,3 +1,5 @@
+//curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=<PAGE_ACCESS_TOKEN>"
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const request = require('request')
@@ -5,6 +7,10 @@ const app = express();
 const apiaiApp = require('apiai');
 const api = apiaiApp('124002d5fe8f471ea94fca91022425dc');
 const Promise = require('promise')
+
+//// message: '(#100) No matching user found', - Due to page token
+var token = "EAASYIgowOGwBABGZCGh4YFEZBialDKpOS7ZCAZBMk8OCE49ss4IiC5saJCXIsdZBwpEhXH5pyk4V4VM7zZCi9Ua2Co74AsC8mFJ40CMSG6NgMenaQALt9OGx7eVkWDylDzCWf3zMWIFzaUXSTIZB0krFYXAmuJoZBCFRMD4JIT7BZCgZDZD"
+
 
 var genres_list = [
 	{"id":28,"name":"Action"},{"id":12,"name":"Adventure"},{"id":16,"name":"Animation"},
@@ -36,11 +42,12 @@ app.post('/webhook', (req, res) => {
   if (req.body.object === 'page') {
     req.body.entry.forEach((entry) => {
       entry.messaging.forEach((event) => {
-        if (event.message && event.message.text) {
+        console.log("\n" + JSON.stringify(event))
+		if (event.message && event.message.text) {
           sendMessageAI(event);
         }
 		else if (event.postback && event.postback.payload) {
-            sendPostback(event)
+            sendPostback(event)	//Postback causes problems for api.ai
         }
       });
     });
@@ -48,15 +55,13 @@ app.post('/webhook', (req, res) => {
   }
 });
 
-var token = "EAASYIgowOGwBAIyBelSxIsUeEZAwpZASkSyYV9I5FzBNRI3g4b39ULf1uIWyQrRdbsM8ZCiDaaHt5gaSfQzlrKCHjH5joQIZCNYlGOh7UIzaKYZAyDFLNaCd2cw06BdVFCCXpEY4uZAl4ZCKAnOjke06ZBJA8swdqYLxg9e643mI8QZDZD"
-
 function sendPostback(event) {
   let sender = event.sender.id;
   let payload = event.postback.payload;
 
 		if (payload.charAt(0) == "m"){
 			//sendMessage(similarStuff(payload,sender))	//Non-blocking/Async problem
-			similarStuff(payload.substr(1,payload.length),sender, 3).then(attachData => {
+			similarStuff(payload.substr(5,payload.length),sender, 3).then(attachData => {
 				sendMessage(attachData, sender)
 			})
 			.catch( error => {
@@ -65,7 +70,7 @@ function sendPostback(event) {
 			
 		}
 		else if (payload.charAt(0) == "s"){
-			similarStuff(payload.substr(1,payload.length),sender, 4).then(attachData => {
+			similarStuff(payload.substr(5,payload.length),sender, 4).then(attachData => {
 				sendMessage(attachData, sender)
 			})
 			.catch( error => {
@@ -73,9 +78,17 @@ function sendPostback(event) {
 			})
 		}
 		else{
-			requestPOSTFB(sender, payload.substr(0,639))
+			requestPOSTFB(sender, payload.substr(0,639))	//Add promise maybe
+	//	wrapper(sender, payload.substr(0,639)).then(body=>{})
 		}
 }
+
+/*function wrapper(sender,text) {
+	return new Promise(function (resolve, reject){
+		resolve(requestPOSTFB(sender, text))
+	})	
+	
+}*/
 
 function sendMessage(attachData, sender) {
 	
@@ -86,8 +99,12 @@ function sendMessage(attachData, sender) {
 function sendMessageAI(event) {
   let sender = event.sender.id;
   let text = event.message.text;
-
-  let apiai = api.textRequest(text, {
+  
+  if (text.includes("Summary") || text.includes("Cast") || text.includes("mnull") || text.includes("snull")){	//Postback was going to api.ai which shouldn't happen
+		return
+  }
+  else{
+  let apiai = api.textRequest(text.substr(0,255), {	// "errorDetails": "All queries should be less than 256 symbols. - Resolved
     sessionId: 'ssd' // use any arbitrary id
   });
 
@@ -108,19 +125,20 @@ function sendMessageAI(event) {
 		requestPOSTFB(sender, aiText, aiPoster)
 		
   });
-
+  
   apiai.on('error', (error) => {
     console.log(error);
   });
 
   apiai.end();
+  }
 }
 
 function requestPOSTFB(sender, text, attachData = null){	//Generic function for making POST requests to FB Messenger
 	request(
 	{
 	  url: 'https://graph.facebook.com/v2.6/me/messages',
-	  qs: {access_token: token},
+	  qs: {access_token: "EAASYIgowOGwBABGZCGh4YFEZBialDKpOS7ZCAZBMk8OCE49ss4IiC5saJCXIsdZBwpEhXH5pyk4V4VM7zZCi9Ua2Co74AsC8mFJ40CMSG6NgMenaQALt9OGx7eVkWDylDzCWf3zMWIFzaUXSTIZB0krFYXAmuJoZBCFRMD4JIT7BZCgZDZD"},
 	  method: 'POST',
 	  json: {
 		recipient: {id: sender},
@@ -135,7 +153,7 @@ function requestPOSTFB(sender, text, attachData = null){	//Generic function for 
 	  if (error) {
 		  console.log('Error sending message: ', error);
 	  } else if (response.body.error) {
-		  console.log('Error: ', response.body.error);
+		  console.log('Error: ', response.body.error);	// message: '(#100) No matching user found',
 	  }
 	})
 }
@@ -177,7 +195,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 	requestPromise(url,true).then(body =>{
 		results = body.results[0]
 		id = body.results[0].id
-		
+		//console.log(name)
 		var url_credits = "https://api.themoviedb.org/3/movie/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 		
 		requestPromise(url_credits,true).then(function (body){
@@ -186,21 +204,21 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 			return res.json(result);
 		})
 		.catch( error => {
-			console.error("Got an error: ", error)
+			console.error("Got an error:1 ", error)
 			})
 		})
 		.catch( error => {	//Need to check if error checking is right
-			console.error("Got an error: ", error)
+			console.error("Got an error:2 ", error)
 		})
 	}
 	else if (req.body.result.action === 'textSearchTV'){
 		var name = req.body.result.parameters['any']	//Program crashes if name is incorrect
 		//console.log(name)
 		var url = "https://api.themoviedb.org/3/search/tv?api_key=6332c91e1508b1fd86ed1653c1cc478e&query=" + name
-		
+		//console.log(name)
 		requestPromise(url,true).then(body =>{
-			results = body.results[0]
-			id = body.results[0].id
+			var results = body.results[0]	//May be non-blocking
+			var id = results.id			//TypeError: Cannot read property 'id' of undefined
 			
 			var url_credits = "https://api.themoviedb.org/3/tv/" + id + "/credits?api_key=6332c91e1508b1fd86ed1653c1cc478e"
 			
@@ -211,11 +229,11 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 
 			})
 			.catch( error => {	//Need to check if error checking is right
-				console.error("Got an error: ", error)
+				console.error("Got an error:3 ", error)
 			})
 		})
 		.catch( error => {	//Need to check if error checking is right
-			console.error("Got an error: ", error)
+			console.error("Got an error:4 ", error)
 		})		
 	}
 	
@@ -354,10 +372,10 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 	
 	if (state == 1 || state == 2){
 		if (state == 1){//This could cause problems, think of alternatives
-			similar = "m"+results.id	//m - movies, s - series
+			similar = "mnull"+results.id	//m - movies, s - series
 		}
 		else{
-			similar = "s"+results.id
+			similar = "snull"+results.id
 		}
 		var attachData = {
 		type : 	"template",
@@ -375,7 +393,7 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 				},
 				{
 					type: "postback",
-					title: "Show Cast",
+					title: "Show Cast",	//This is going as a query to api.ai "Show" -> "Series"
 					payload: text_cast//.substr(0,999)
 				},
 				{
