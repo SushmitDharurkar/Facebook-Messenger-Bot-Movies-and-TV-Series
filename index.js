@@ -1,3 +1,7 @@
+/*Welcome Screen
+curl -X POST -H "Content-Type: application/json" -d '{"setting_type":"call_to_actions", "thread_state":"new_thread", "call_to_actions":[{"payload":"USER_DEFINED_PAYLOAD"}]}' "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=PAGE_ACCESS_TOKEN"      
+*/
+
 //curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=<PAGE_ACCESS_TOKEN>" - Subscribing to receive messages
 
 /* Whitelisting urls
@@ -69,7 +73,10 @@ function sendPostback(event) {
   let sender = event.sender.id;
   let payload = event.postback.payload;
 
-		if (payload.charAt(0) == "m"){
+		if (payload.includes("Welcome")){
+			requestPOSTFB(sender, "Welcome folks")
+		}
+		else if (payload.charAt(0) == "m"){
 			//sendMessage(similarStuff(payload,sender))	//Non-blocking/Async problem
 			similarStuff(payload.substr(5,payload.length),sender, 3).then(attachData => {
 				sendMessage(attachData, sender)
