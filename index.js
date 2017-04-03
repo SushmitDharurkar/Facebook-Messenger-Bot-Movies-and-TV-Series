@@ -401,7 +401,7 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 				default_action: {
 				  type: "web_url",
 				  url: image_url,
-				 // messenger_extensions: true,
+				 // messenger_extensions: true,	//Need to whitelist domain
 				  webview_height_ratio: "tall",
 				  //"fallback_url": "https://peterssendreceiveapp.ngrok.io/" //Check this later
 				},				
@@ -446,6 +446,13 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 		//subtitle: subtitle,		//subtitle has 80 chars limit	//Genres also not fitting
 		subtitle: text.substr(0,79),
 		image_url: image_url,
+		default_action: {
+			  type: "web_url",
+			  url: image_url,
+			 // messenger_extensions: true,	//Need to whitelist domain
+			  webview_height_ratio: "tall",
+			  //"fallback_url": "https://peterssendreceiveapp.ngrok.io/" //Check this later
+		},	
 		buttons:[{		//Control again goes to start as we receive a new message
 			type: "postback",
 			title: "Show Summary",		//payload has 1000 chars limit
