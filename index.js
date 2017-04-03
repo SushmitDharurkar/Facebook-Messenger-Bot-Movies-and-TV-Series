@@ -41,35 +41,19 @@ app.get('/webhook', (req, res) => {
 /* Handling all messenges */
 app.post('/webhook', (req, res) => {
   //console.log(req.body);
-  /*if (req.body.object === 'page') {
+  if (req.body.object === 'page') {
     req.body.entry.forEach((entry) => {		//Maybe here is error	//Reading system msgs as user input
       entry.messaging.forEach((event) => {
-        console.log("\n" + JSON.stringify(event))
+        //console.log("\n" + JSON.stringify(event))
 		if (event.message && event.message.text) {
-          console.log("\n User Msg:" + JSON.stringify(event))
+          //console.log("\n User Msg:" + JSON.stringify(event))
 		  sendMessageAI(event);
         }
 		else if (event.postback && event.postback.payload) {
             sendPostback(event)	//Postback causes problems for api.ai
         }
       });
-  });*/
-	
-	messaging_events = req.body.entry[0].messaging
-    for (i = 0; i < messaging_events.length; i++) {
-        event = req.body.entry[0].messaging[i]
-        sender = event.sender.id
-		//console.log("\n" + JSON.stringify(event))
-        if (event.message && event.message.text) {
-			//console.log("\n User Msg: " + JSON.stringify(event))
-            //text = event.message.text
-            sendMessageAI(event);
-        }
-		else if (event.postback && event.postback.payload) {
-            sendPostback(event)	//Postback causes problems for api.ai
-        }
-    //}
-	
+  });
     res.status(200).end();
   }
 });
