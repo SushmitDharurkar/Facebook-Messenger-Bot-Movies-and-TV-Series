@@ -75,7 +75,9 @@ function sendPostback(event) {
   let payload = event.postback.payload;
 
 		if (payload.includes("WELCOME")){
-			requestPOSTFB(sender, "Welcome folks")
+			requestPOSTFB(sender, "Welcome!! How are you today?")
+			requestPOSTFB(sender, "You can search a movie as \"movie Logan\" or search a tv series as \"series suits\" or " +
+			"you can search top movies/tv series as \"top movies\" or \"top series\".")
 		}
 		else if (payload.charAt(0) == "m"){
 			//sendMessage(similarStuff(payload,sender))	//Non-blocking/Async problem
