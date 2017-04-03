@@ -73,52 +73,14 @@ function sendPostback(event) {
 			})
 		}
 		else{
-			request({							//Need to write a function for this
-			  url: 'https://graph.facebook.com/v2.6/me/messages',
-			  qs: {access_token: token},
-			  method: 'POST',
-			  json: {
-				recipient: {id: sender},
-				message: { 
-					text: payload.substr(0,639), //text has 640 chars limit
-					},
-				//sender_action:"typing_on"
-			  }
-			}, (error, response) => {
-			  if (error) {
-				  console.log('Error sending message: ', error);
-			  } else if (response.body.error) {
-				  console.log('Error: ', response.body.error);
-			  }
-			});	
+			requestPOSTFB(sender, payload.substr(0,639))
 		}
 }
 
 function sendMessage(attachData, sender) {
-	//console.log(req)
-	request(
-		//req
-		{
-		  url: 'https://graph.facebook.com/v2.6/me/messages',
-		  qs: {access_token: token},
-		  method: 'POST',
-		  json: {
-			recipient: {id: sender},
-			message: { 		//Either message or attachment
-				//text: aiText,
-				attachment : attachData
-				},
-			//sender_action:"typing_on"	
-				
-		  }
-		}
-	, (error, response) => {
-	  if (error) {
-		  console.log('Error sending message: ', error);
-	  } else if (response.body.error) {
-		  console.log('Error: ', response.body.error);
-	  }
-	});
+	
+	requestPOSTFB(sender,"", attachData)
+	
 }
 
 function sendMessageAI(event) {
@@ -142,27 +104,9 @@ function sendMessageAI(event) {
 			//For attachments
 			aiPoster = response.result.fulfillment.data;
 		 }
-		// console.log(response)
-		request({
-		  url: 'https://graph.facebook.com/v2.6/me/messages',
-		  qs: {access_token: token},
-		  method: 'POST',
-		  json: {
-			recipient: {id: sender},
-			message: { 		//Either message or attachment
-				text: aiText,
-				attachment : aiPoster
-				},
-			//sender_action:"typing_on"	
-				
-		  }
-		}, (error, response) => {
-		  if (error) {
-			  console.log('Error sending message: ', error);
-		  } else if (response.body.error) {
-			  console.log('Error: ', response.body.error);
-		  }
-		});
+		
+		requestPOSTFB(sender, aiText, aiPoster)
+		
   });
 
   apiai.on('error', (error) => {
@@ -170,6 +114,51 @@ function sendMessageAI(event) {
   });
 
   apiai.end();
+}
+
+function requestPOSTFB(sender, text, attachData = null){	//Generic function for making POST requests to FB Messenger
+	request(
+	{
+	  url: 'https://graph.facebook.com/v2.6/me/messages',
+	  qs: {access_token: token},
+	  method: 'POST',
+	  json: {
+		recipient: {id: sender},
+		message: { 		//Either message or attachment
+			text: text,
+			attachment : attachData
+			},
+		//sender_action:"typing_on"	
+	  }
+	}
+	, (error, response) => {
+	  if (error) {
+		  console.log('Error sending message: ', error);
+	  } else if (response.body.error) {
+		  console.log('Error: ', response.body.error);
+	  }
+	})
+}
+
+		
+function requestPromise(url, json){	//Generic function for making GET requests to APIs
+	return new Promise(function (resolve, reject){
+		request(
+		{url: url,
+		json: json}
+		, (error, response, body)=> {
+		  if (!error && response.statusCode === 200) {
+			resolve(body)
+		  } else {
+			if (error){
+				reject(error)
+			}
+			else{
+				reject(response.statusCode)
+			}
+		  }
+		})	
+	})
 }
 
 /*
@@ -236,13 +225,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		requestPromise(url,true).then(function (body){
 		results = body.results
 		
-		var attachData = {				//This also can be made a function
-					type : 	"template",
-					payload : {
-						template_type:"generic",					
-						elements: []
-					}
-			}
+		var attachData = attachmentData()
 		
 		for (var i=0; i<10; i++){	//I think this will take time - not that much
 			attachData.payload.elements[i] = allInformation(body, results[i], 3)
@@ -266,13 +249,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		requestPromise(url,true).then(body =>{
 		results = body.results
 		
-		var attachData = {
-					type : 	"template",
-					payload : {
-						template_type:"generic",					
-						elements: []
-					}
-			}
+		var attachData = attachmentData()
 		
 		for (var i=0; i<10; i++){	//I think this will take time - not that much
 			attachData.payload.elements[i] = allInformation(body, results[i], 3)
@@ -296,13 +273,7 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		
 			results = body.results
 			
-			var attachData = {
-						type : 	"template",
-						payload : {
-							template_type:"generic",					
-							elements: []
-						}
-				}
+			var attachData = attachmentData()
 			
 			for (var i=0; i<10; i++){	
 				attachData.payload.elements[i] = allInformation(body, results[i], 4)
@@ -320,25 +291,14 @@ app.post('/ai', (req, res) => {	//apiai requires json format return
 		})
 	}
 })
-		
-function requestPromise(url, json){	//Generic function for making GET requests to APIs
-	return new Promise(function (resolve, reject){
-		request(
-		{url: url,
-		json: json}
-		, (error, response, body)=> {
-		  if (!error && response.statusCode === 200) {
-			resolve(body)
-		  } else {
-			if (error){
-				reject(error)
+
+function attachmentData(){
+	return {	type : 	"template",
+				payload : {
+					template_type:"generic",					
+					elements: []
+				}
 			}
-			else{
-				reject(response.statusCode)
-			}
-		  }
-		})	
-	})
 }
 
 function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Series
@@ -481,13 +441,7 @@ function similarStuff(id, sender, state){
 		
 			var results = body.results	
 			
-			var attachData = {
-							type : 	"template",
-							payload : {
-								template_type:"generic",					
-								elements: []
-							}
-					}
+			var attachData = attachmentData()
 				
 			for (var i=0; i<10; i++){	
 				attachData.payload.elements[i] = allInformation(body, results[i], state)
