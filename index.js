@@ -74,7 +74,7 @@ function sendPostback(event) {
   let sender = event.sender.id;
   let payload = event.postback.payload;
 
-		if (payload.includes("Welcome")){
+		if (payload.includes("WELCOME")){
 			requestPOSTFB(sender, "Welcome folks")
 		}
 		else if (payload.charAt(0) == "m"){
