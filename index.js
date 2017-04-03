@@ -62,6 +62,7 @@ app.post('/webhook', (req, res) => {
         }
 		else if (event.postback && event.postback.payload) {
             sendPostback(event)	//Postback causes problems for api.ai
+			console.log(JSON.stringify(event))
         }
       });
   });
