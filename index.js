@@ -1,4 +1,11 @@
-//curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=<PAGE_ACCESS_TOKEN>"
+//curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=<PAGE_ACCESS_TOKEN>" - Subscribing to receive messages
+
+/* Whitelisting urls
+curl -X POST -H "Content-Type: application/json" -d '{"setting_type" : "domain_whitelisting","whitelisted_domains" : ["https://www.themoviedb.org"],"domain_action_type": "add"}' "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token="
+
+curl -i -X GET "https://graph.facebook.com/v2.6/me/subscribed_apps?fields=whitelisted_domains&access_token="
+
+*/
 
 // message: '(#100) No matching user found', - Due to page token - Due to echoes
 var FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN
