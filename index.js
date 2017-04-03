@@ -401,7 +401,7 @@ function allInformation(body, results, state){	//state: 1,3 - Movies, 2,4 - Seri
 				default_action: {
 				  type: "web_url",
 				  url: image_url,
-				  messenger_extensions: true,
+				 // messenger_extensions: true,
 				  webview_height_ratio: "tall",
 				  //"fallback_url": "https://peterssendreceiveapp.ngrok.io/" //Check this later
 				},				
