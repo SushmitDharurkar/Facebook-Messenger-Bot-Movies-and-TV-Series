@@ -76,8 +76,8 @@ function sendPostback(event) {
 
 		if (payload.includes("WELCOME")){
 			requestPOSTFB(sender, "Welcome!! How are you today?")
-			requestPOSTFB(sender, "You can search for:\n- a movie\n- a tv series" +
-			"\n- latest movies\n- top movies or top tv series\n or you can just do small talk :\)")
+			requestPOSTFB(sender, "You can search for:\n- Movies\n- Tv Series" +
+			"\n- Latest Movies\n- Top Movies\n- Top Tv Series\n or you can just do small talk :\)")
 		}
 		else if (payload.charAt(0) == "m"){
 			//sendMessage(similarStuff(payload,sender))	//Non-blocking/Async problem
